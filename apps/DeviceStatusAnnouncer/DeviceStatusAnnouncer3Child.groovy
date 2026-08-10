@@ -2,7 +2,7 @@
  * ==========================  Device Status Announcer ==========================
  *  Platform: Hubitat Elevation
  *
- *  Copyright 2025 Robert Morris
+ *  Copyright 2026 Robert Morris
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -17,6 +17,7 @@
  *  Author: Robert Morris
  *
  * Changelog:
+ * 3.3.1 (2026-08-09) - Fix for not ignoring disabled devices
  * 3.3.0 (2025-04-12) - Add feature to write notification/TTS text to hub variable
  * 3.2.3 (2024-03-13) - Alphabetize device names in custom group list summaries and notifications
  * 3.2.2 (2024-03-13) - Add option to omit attribute name for custom devices
@@ -325,10 +326,12 @@ String getDeviceStatusReport() {
    String statusReport = ""
    com.hubitat.app.DeviceWrapperList contacts = settings["contactSensors"]
    com.hubitat.app.DeviceWrapperList locks = settings["doorLocks"]
+   com.hubitat.app.DeviceWrapperList thermostats = settings["thermostats"]
    if (!(settings["boolIncludeDisabled"])) {
-      contacts = contacts?.findAll { it.isDisabled != true }
-      locks = locks?.findAll { it.isDisabled != true }
-      // TODO: check custom devices and thermostats here, too!
+      contacts = contacts?.findAll { it.isDisabled() != true }
+      locks = locks?.findAll { it.isDisabled() != true }
+      thermostats = thermostats?.findAll { it.isDisabled() != true }
+      // Custom devices are handled below since they are iterated over differently there
    }
    state.contactLockGroups?.each { groupId ->
       if (settings["contactLockGroup_${groupId}_devs"] && settings["contactLockGroup_${groupId}_name"]) {
@@ -393,6 +396,9 @@ String getDeviceStatusReport() {
    }
    state.customDeviceGroups?.each { Integer groupNum ->
       List<com.hubitat.app.DeviceWrapper> devs = settings."customDeviceGroup_${groupNum}_devs"
+      if (!(settings["boolIncludeDisabled"])) {
+         devs = devs?.findAll { it.isDisabled() != true }
+      }
       String capability = settings."customDeviceGroup_${groupNum}_capability"
       String attribute = customDeviceCapabilities."${capability}"?.attribute
       if (attribute == null) {
